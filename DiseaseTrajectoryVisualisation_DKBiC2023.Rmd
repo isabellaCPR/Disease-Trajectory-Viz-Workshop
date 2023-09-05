@@ -1,0 +1,325 @@
+---
+title: "Disease Trajectory Visualisation workshop - DKBiC"
+author: "Isbaella Friis Jørgensen (isabella.jorgensen@cpr.ku.dk)"
+date: "07/09/2023"
+---
+
+In this workshop you will to use the R to investigate simulated data from the National Patient Registry. You will try to visualize common disease trajectories from the Danish population.
+
+## Introduction
+
+### Disease trajecotories
+A disease co-occurrence algorithm was developed to investigate comorbidities and longer, temporal disease trajectories in the Danish population. The key steps in the algorithm is seen on Figure 1 below. Different colours of the patients illustrate different comorbidities and each colour corresponds to a specific chapter in the ICD-10 terminology (step 1 in Figure 1). All possible combinations of disease co-occurrences (D1 with D2) in the population are tested to find diseases that co-occur significantly more often together compared to their individual frequencies (step 2 in Figure 1). The relative risk (RR) is used to evaluate the strength of the correlation between disease co-occurrences. Comparison groups of N =10,000 random patients are matched on birth decade, sex, type of hospital encounter and discharge week. Occurrences of D2 in this matched comparison group were calculated (C1…CN) and show how prevalent the co-occurrence of D1 and D2 are in the general population. P-values for each RR were found using a binomial distribution where Cexposed is compared to the average probability of sampling a comparison patient with D2. All disease pairs (D1 and D2) with an RR > 1 and p-value < 0.001 were included as significant disease co-occurrences (Figure 6, step 2). All significant disease co-occurrences were tested for directionality with binomial tests to identify pairs where significantly more patients had D1 diagnosed before D2 or the other way around (Figure 1, step 3). P-values were corrected for multiple testing using Bonferroni correction and found significant if the corrected p-value < 0.05. 
+Significant directed disease pairs are combined into longer trajectories of overlapping diagnoses (Figure 1, step 4). Typically, we required that at least 20 patients follow the entire trajectory, thus in this case, have all five diagnoses (D1-> D2 -> D3 -> D4 -> D5) in the order specified by the trajectory. Numerous disease trajectories can be visualised as a disease progression network with edges linking directed disease pairs, showing how frequent alternative disease paths are followed over time (Figure 1, step 5).
+ 
+
+### Agenda for today
+ **Understand registry data**
+ **Disease pairs, linear age pair plot and sankey visualization**
+ **Disease trajectories associated to survival in sankey**
+ **Danish Disease Trajectory Browser**
+
+### Learning Objectives
+1) Get familiar with registry-like data and ICD-10 structure and codes
+2) Understand the concept of disease trajectories
+3) Try different ways of visualizing disease trajectories
+
+
+## The programming language R
+
+If you need help to understand what a function does, which variables you can modify etc., you can always use the questionmark to open a help page. For example does this show how the library command works:
+
+```{r}
+?library
+```
+
+For some of the code you will need to install the tidyverse, dplyr, networkD3 and alluvial packages.
+
+```{r, echo=TRUE, message=FALSE, results='hide', eval =F}
+install.packages("tidyverse")
+library(tidyverse)
+install.packages("dplyr")
+library(dplyr)
+install.packages("ggplot2")
+library("ggplot2")
+install.packages("networkD3")
+library(networkD3)
+install.packages("alluvial")
+library(alluvial)
+```
+
+## 1) LOAD THE DATA FILES INTO R
+
+We have created a simulated data set that is similar to registry type data. There are two files from the registry:
+
+-   A cpr-file *cpr.tsv* that contains: patient information.
+-   A lpr-file *lpr.tsv* that contains: information about the patients' stay at the hospital.
+
+Read the two files into R. You can use the read.csv command. This will read and save the files as a data frame. A data frame has the variables of a data set as columns and the observations as rows. It is specified that the file has a header and that the columns are split by tabs.
+
+```{r}
+cpr <- read.csv('cpr.tsv', header = T, sep = '\t')
+
+lpr <- read.csv('lpr.tsv', header = T, sep ='\t')
+
+```
+
+#" 2) TAKE A LOOK AT THE DATA
+
+Take a look at the files and try to understand the files.
+
+**Q: What columns do each of the files contain?**
+
+The "head" command is used to see only the first few lines of the file:
+
+```{r, eval=F}
+head(cpr)
+```
+
+```{r, eval =F}
+head(lpr)
+```
+**Q: What do you think the ADM_DATE stands for?**
+
+**Q: How big are the files/How many lines do they contain?**
+
+The "dim" command shows the dimensions of the files.
+
+```{r, eval=F}
+dim(cpr)
+```
+
+The first number is the number of rows, the second is the number of columns.
+
+```{r, eval =F}
+dim(lpr)
+```
+
+**Q: What is the ICD-10 code for pancreatic cancer?** (HINT: look it up online)
+
+**Q: How many times is pancreatic cancer diagnosed in the registry??** (HINT: replace "ICD10" with the code you found for pancreatic cancer.)
+
+```{r}
+sum(lpr$CODE == "ICD10")
+```
+
+# 3) TIME TO LOOK AT DISEASE PAIRS AND TRAJECTORIES
+
+We have cheated a little and prepared disease trajectories in advance (as it would take to long for you to do it during this workshop). We created two files;
+
+-   A pairs-file *pairs.tsv* that contains: pairs of disease co-occurences in the National Patient Registry
+-   A trj-file *trj.tsv* that contains: disease trajectories with 3 consecutive disease for pancreatic cancer
+
+Read the two files into R. You can use the read.csv command. This will read and save the files as a data frame. A data frame has the variables of a data set as columns and the observations as rows. It is specified that the file has a header and that the columns are split by tabs.
+
+```{r}
+pairs <- read.csv('pairs.tsv', header = T, sep = '\t')
+
+trj <- read.csv('trj.tsv', header = T, sep ='\t')
+
+```
+
+Take a look at the files and try to understand them.
+
+**Q: What columns do each of the files contain?**
+
+The "head" command is used to see only the first few lines of the file:
+
+```{r, eval=F}
+head(pairs)
+```
+
+```{r, eval =F}
+head(trj)
+```
+
+**Q: How big are the files/How many lines do they contain?**
+
+```{r, eval =F}
+dim(pairs)
+dim(trj)
+```
+
+We will start out with visualizing the disease pairs, hence all of the diseases that co-occur more together than expected based on the individual frequencies. First you should filter the pairs file so it only includes pairs including the diagnosis of pancreatic cancer.
+
+```{r, eval =F}
+pairs[which(pairs$D1 == "C25" | pairs$D2 == "C25"),]
+pairs = pairs[which(pairs$D1 == "C25" | pairs$D2 == "C25"),]
+```
+
+```{r, eval=T}
+# define colors of ICD-10 chapters
+colorCodes = c(A = "#2FCFD3", C="#9E4F46", D = "#F69EDC", E= "#FF1AB9", F = "#2DC92D", G = "#004DE6", K = "#008495")
+library(ggplot2)
+## Color look up:
+pairs$col1 = as.matrix(colorCodes[substr(pairs$D1,1,1)])
+pairs$col2 = as.matrix(colorCodes[substr(pairs$D2,1,1)])
+
+# create name for each trajectory and order file according to age at diagnose
+pairs$name = paste(pairs$D1, pairs$D2, sep = "_")
+pairs$name = factor(pairs$name, levels = pairs$name[order(pairs$AGE_AT_DISEASE)])
+
+# create plot
+ggplot(data=pairs, aes()) +
+  geom_segment(aes(x=(AGE_AT_DISEASE/365.25), xend=((AGE_AT_DISEASE+CODE_DIFF_DAYS)/365.25),y=name, yend =name), size = pairs$counts/200, alpha=.7, col="grey") +
+  geom_point(aes(x=(AGE_AT_DISEASE/365.25), y=name,colour=col1), size =8, alpha=1) + 
+  geom_text(aes(x=(AGE_AT_DISEASE/365.25), y=name,label=D1),size=2, colour="white") +
+  geom_point(aes(x=((AGE_AT_DISEASE+CODE_DIFF_DAYS)/365.25), y=name, colour=col2),size =8, alpha=1) + 
+  geom_text(aes(x=((AGE_AT_DISEASE+CODE_DIFF_DAYS)/365.25), y=name, label=D2),size=2,colour="white") +
+  scale_colour_identity() + theme(text = element_text(size = 12)) + theme_minimal() +
+  xlab("Age at first diagnosis") + ylab(" ") + 
+  ggtitle("Pancreatic cancer disease pairs") + 
+  theme(plot.title = element_text(color="black", size=12),
+        axis.ticks.y = element_blank())
+```
+
+**Q: question(s) about understanding the plot**
+
+Sankey diagram: For this we need a package called "alluvial", that we installed in the beginning. 
+
+
+```{r}
+## COMMENT ON CODE HERE
+library(tidyverse)
+library(networkD3)
+nodes = data.frame(names=c(as.character(pairs$D1), as.character(pairs$D2)) %>% unique())
+
+pairs$IDsource = match(pairs$D1, nodes$names)-1
+pairs$IDtarget = match(pairs$D2, nodes$names)-1            
+
+nodes$group = as.factor(substr(nodes$names, 0,1))
+
+my_color = 'd3.scaleOrdinal() .domain(["A", "C", "D", "E", "F", "G", "K"])
+.range(["#2FCFD3", "#9E4F46", "#F69EDC", "#FF1AB9", "#2DC92D", "#004DE6", "#008495"])'
+
+sankeyNetwork(Links = pairs, Nodes = nodes, Source ="IDsource", Target = "IDtarget", Value = "counts", NodeID = "names", 
+  sinksRight =T, fontSize =0, fontFamily=NULL, nodeWidth = 10, nodePadding = 5, margin = NULL, height = 100, width=200, iterations= 32, colourScale=my_color, NodeGroup="group") 
+
+```
+**Q: question about understanding this plot: Or move things around and make it look nice - it is interactive!** 
+
+
+The trj.tsv file contains temporal disease trajectories that each of the patients follow. Patients can follow more than one trajectory. Therefore, there can be several lines for one patient in the trj file. Each trajectory in the file consists of 3 different diseases. We would like to visualize the different steps in the most common trajectories. For this we need a package called "alluvial", that we installed in the beginning. 
+
+To see which variables are needed for alluvial to create temporal patterns, use the questionmark to command to discover details about the alluvial command:
+
+```{r, eval =F}
+?alluvial
+```
+
+Alluvial needs a "vectors or data frames, all for the same number of observations" (in this observations are disease trajectories that patients follow) and a "numeric, vector of frequencies of the same length as the number of observations". Thus, you should calculate how many times each of the trajectories show up, hence;
+
+**Q: What are the three most frequent trajectories and which disease are part of these trajectories?**
+
+```{r, eval =F}
+trj[order(trj$counts,decreasing=TRUE),][1:3,]
+```
+
+For this you can use the 'order' command. This orders the columns in the data frame - here in decreasing order.
+
+### Visualising disease trajectory patterns
+
+You are now ready to visualise the disease trajectory patterns. We will use the alluvial package:
+
+```{r, eval =F}
+alluvial(data= trj[,1:3], freq = trj$counts)
+```
+
+The data we use consists of the first 4 columns of the trj_freq data frame, and the frequency of how many patients follow the trajectories is specified in the Freq column. We hide all the trajectories that no one follows.
+
+This looks a little messy, so let's try to change a few things to make it look better. First let's increase the cut-off for the number of patients to 3000 (you can also try other numbers).
+
+```{r, warning=FALSE, eval =F}
+trj= trj[which(trj$counts >= 100),]
+alluvial(data= trj[,1:3], freq = trj$counts)
+```
+
+Now we would like to add information on whether patients survive or die after following a specific disease trajectory. Patient survival information is present in the cpr data frame. STATUS of 90 means that the patient died, where as a STATUS of 1 means the patient is alive at the end of the data. Therefore we need to combine the trajectory information with STATUS information in one data frame. This can be done in many ways, among others with the inner_join command.
+
+Now you can see that the two files are combined so that we have information about the disease trajectories and the status in the same data frame. Again let's calculate how frequent each of the trajectories is, including the frequency of the status.
+
+### HERE I COULD SPLIT THE DATAFRAME IN TRAJ AND THE ONES THAT DIED AND. ARE STILL ALIVE!?!?!
+
+```{r, eval =F}
+# create 
+trj_died = trj
+trj_died$status = "died"
+trj_died$status_counts = trj$died
+trj_alive = trj
+trj_alive$status = "alive"
+trj_alive$status_counts = trj$alive
+trj_total = rbind(trj_alive, trj_died)
+
+```
+
+And then try to plot the disease trajectories with status information using alluvial as before.
+
+```{r, eval =F}
+alluvial(data= trj_total[,c("D1", "D2", "D3", "status")], freq = trj_total$status_counts)
+```
+
+Lets' again try to increase the number of patients to 3000 to get a better overview.
+
+```{r, warning=FALSE, eval =F}
+trj_total = trj_total[which(trj_total$counts >= 100),]
+alluvial(data= trj_total[,c("D1", "D2", "D3", "status")], freq = trj_total$status_counts)
+```
+
+It is still a little difficult to see exactly which trajectories patients that survive or die follow. Let's try to color all trajectories that patients follow and have status 90 afterwards.
+
+```{r, warning=FALSE, eval =F}
+alluvial(data= trj_total[,c("D1", "D2", "D3", "status")], freq = trj_total$status_counts, col = ifelse(trj_total$status == "died", "grey", "green"))
+```
+
+Now it is easier to see exactly which trajectories patients that died followed. This analysis does not account for any type of bias. We do not take patients age, sex, other diseases, censoring time to status etc. into account. Also we do not look at causality in these analysis. We only visualize the common patterns. You will learn more about causality later in this course.
+
+Let's try to make it look even nicer by adding titles, etc. Try to add and change parameters on your own to make the figure look even better. You can check the R help: ?alluvial or google "R alluvial" to find some tips and tricks.
+
+Here is one suggestion to how it could look. Feel free to change pieces of information and code within this line to get your favorite trajectory sandkey diagram.
+
+```{r, warning = FALSE, eval =F}
+alluvial(data= trj_total[,c("D1", "D2", "D3", "status")], freq = trj_total$status_counts, col = ifelse(trj_total$status == "died", "coral", "darkgreen"), 
+         alpha =0.8, cex =0.75, axis_labels = c("Disease1", "Disease2", "Disease3", "Status"), border = NA, gap.width = 0.1,cw = 0.1,xw=0.2,
+         layer = trj_total$status == "alive", blocks = F)
+```
+
+
+Now you have played around with disease trajecotry visualisation in R. Now you will do some small exercises in a browser we developed few years ago that contain all disease trajectories from the Danish population. 
+
+1) Go to dtb.cpr.ku.dk
+
+2) Search for 'C25 Malignant neoplasm of pancreas' OR your favorite disease of interest!
+
+3) How many linear trajectories show up? (Go to the help videos if there is anything you do not know how to do!) (212)
+
+4) In the search settings at the bar to the right set the relative risk to be above 2 and minimum 100 patients (choose your own search filters if you chose your own disease prviously!)
+
+5) How many linear trajectories show up now? (112)
+
+6) Turn network view on. Move the nodes around so you can better see both nodes and edges. Which egde (between which to nodes) does to most patient follow? 
+
+7) Click on this edge. What is the relative risk and the p-value for these two 'dieseases'? 
+
+8) Change the edge annotation to relative risk. Which egde (between which to nodes) has the highest relative risk? 
+
+9) click on this edge. How many patients have the two diseases? 
+
+10) click on C25 (or your favorite disease you searched for), highlight incoming and outgoing edges and delete everything else. Now you have only the diseases which are found to co-occur significanlty more with C25 compared to the individual frenquencies of the two in the Danish population. 
+
+11) Now we want to look at bit closer into the sex differences in the C25 cancer trajectories. Go back to settings and select females patients only - remmeber to click 'search with filter'. Go to the information tab and 'download data as' 'JSON for cystoscape Desktop'. The file should now be downloaded.
+
+12) Go back and select male patients only. Download this network as JSON file as well. 
+
+13) Open cytoscape and read in the networks. How to import trajectories into Cytoscape. Import the files you just downloaded  (menu: File -> Import -> Network from file...) Make sure you rename the networks, so you know which one is the female network and which one is the male network. Rename a network by right-cliciking on it, "rename network..". 
+•	In the control panel (left) select the "Style" tab. Make sure you are editing "Node" style.
+•	Color: In the “Fill color” property, press the map button. "Column" should be "color", "Mapping type" should be "passthrough mapping".
+Name: In the "Label" property, press the map button. "Column" should be "name", "Mapping type" should be "passthrough mapping".
+ Now, make sure you are editing "Edge" style.
+•	Change the width of the edges by clicking “Width” parameter and under “column” choose “nPatients” and “Mapping Type” choose “Continuous Mapping”.  You can double-click the “current mapping” graph and adjust the thickness of the edges so that edges with few patients thinner or edges with many patients thicker. 
+
+
+Now decide which nodes/disease are in females and males, only. For this MERGE networks. 
+
+Play around with the network. Add labels, change styles and format and move the nodes around until you are satisfied with your disease trajectory network. 
+
+7) Take a screenshot of your final network and put in the report. You can also save the network as a pdf file/jpeg file and paste in the report (menu: File -> Export -> Network to image -> and choose you desired format).
