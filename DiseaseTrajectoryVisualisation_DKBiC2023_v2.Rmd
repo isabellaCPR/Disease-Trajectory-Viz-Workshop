@@ -185,7 +185,6 @@ pairs$name = paste(pairs$D1, pairs$D2, sep = "_")
 pairs$name = factor(pairs$name, levels = pairs$name[order(pairs$AGE_AT_D1)])
 
 # create plot
-install.packages("ggplot2")
 library(ggplot2)
 ggplot(data=pairs, aes()) +
   geom_segment(aes(x=(AGE_AT_D1/365.25), xend=((AGE_AT_D1+CODE_DIFF_DAYS)/365.25),y=name, yend =name), size = pairs$counts/200, alpha=.7, col="grey") +
