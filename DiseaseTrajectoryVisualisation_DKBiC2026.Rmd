@@ -109,6 +109,98 @@ HINT: The "dim" command shows the dimensions of the files.
 sum(lpr$CODE == "ICD10")
 ```
 
+Now that you have familiarized yourself a bit with the format of cpr.tsv and lpr.tsv, we will try to visualize the data and do some basic statistics.
+
+First, you should combine the files for one larger data frame merged by the PID column. For convenience with the subsequent analyses, we suggest you called the combined data frame "merge_cpr_lpr".
+
+HINT: The "merge" command merges two data frames by common columns.
+
+```{r}
+# Type your own commands to merge the files here: 
+merge_cpr_lpr = merge(cpr, lpr, by ="PID")
+head(merge_cpr_lpr)
+
+```
+
+Now we could for example calculate the age for each individual at each diagnosis to visualize ages for specific diagnoses.
+
+**Q: What is the mean age for any diagnosis in the registry? Does it sound realistic?**
+
+```{r}
+# Convert birthday and diagnosis date to date format
+merge_cpr_lpr$BIRTHDAY  <- as.Date(merge_cpr_lpr$BIRTHDAY)
+merge_cpr_lpr$ADMDATE <- as.Date(merge_cpr_lpr$ADMDATE)
+
+# Calculate the age at each diagnosis by substracting the admission date from the birthday
+merge_cpr_lpr$age_at_diagnosis <- as.numeric(
+  difftime(merge_cpr_lpr$ADMDATE, merge_cpr_lpr$BIRTHDAY, units = "days")) / 365.25
+
+# calculate the mean age at any diagnosis 
+mean(merge_cpr_lpr$age_at_diagnosis)
+
+```
+
+Now you should try to visualize the age at diagnosis in a simple plot.
+
+**Q: Does it look realistic? Why/Why not?**
+
+```{r}
+# plot the age at diagnosis
+ggplot(merge_cpr_lpr, aes(x = age_at_diagnosis)) +
+  geom_histogram(bins = 80) +
+  labs(
+    title = "Age at Diagnosis Distribution",
+    x = "Age at Diagnosis (years)",
+    y = "Count"
+  ) +
+  theme_minimal()
+
+
+```
+
+Try to count the how many times each diagnosis is given in the registry.
+
+**Q: What are the three most common diagnoses? Is this realistic?**
+
+```{r}
+## Count how many times each diagnosis is given
+diagnosis_counts <- sort(table(merge_cpr_lpr$CODE), decreasing = TRUE)
+head(diagnosis_counts,3)
+```
+
+Now it becomes a bit more advanced. Try to calculate the top 10 occurring comorbidities in the registry.
+
+**Q: What is the top 10 most common comorbidities? Is this realistic?**
+
+```{r}
+
+# Keep unique patient-diagnosis combinations 
+unique_dx <- unique(merge_cpr_lpr[, c("PID", "CODE")])
+
+# Split diagnoses by patient
+dx_by_patient <- split(unique_dx$CODE, unique_dx$PID)
+
+# Function to generate diagnosis pairs
+get_pairs <- function(dx) {
+  if (length(dx) < 2) return(NULL)
+  combn(sort(dx), 2, FUN = function(x) paste(x, collapse = " + "))
+}
+
+# Generate all diagnosis pairs
+all_pairs <- unlist(lapply(dx_by_patient, get_pairs))
+
+# Count comorbidities
+comorbidity_counts <- sort(table(all_pairs), decreasing = TRUE)
+
+# Top 10 comorbid diagnosis pairs 
+top_10_comorbidities <- head(comorbidity_counts, 10)
+
+print(top_10_comorbidities)
+
+```
+
+You are now done with the first initial look at the registry-like data as well as some basic statistics and visualizations of the data. This type of data have been used to create disease trajectories for the Danish population, which you will learn more about later!
+
 You are now done with the first initial look at the registry-like data. This type of data have been used to create disease trajectories for the Danish population. You can wait till all are done with this part and we move on with the disease trajectory 'lecture' or you can slowly start to read about disease trajectories yourself (see below).
 
 ## Disease pairs, linear age plot and Sankey network visualization
