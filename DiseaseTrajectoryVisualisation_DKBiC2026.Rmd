@@ -131,7 +131,7 @@ Now we could for example calculate the age for each individual at each diagnosis
 merge_cpr_lpr$BIRTHDAY  <- as.Date(merge_cpr_lpr$BIRTHDAY)
 merge_cpr_lpr$ADMDATE <- as.Date(merge_cpr_lpr$ADMDATE)
 
-# Calculate the age at each diagnosis by substracting the admission date from the birthday
+# Calculate the age at each diagnosis by subtracting the admission date from the birthday
 merge_cpr_lpr$age_at_diagnosis <- as.numeric(
   difftime(merge_cpr_lpr$ADMDATE, merge_cpr_lpr$BIRTHDAY, units = "days")) / 365.25
 
@@ -199,9 +199,7 @@ print(top_10_comorbidities)
 
 ```
 
-You are now done with the first initial look at the registry-like data as well as some basic statistics and visualizations of the data. This type of data have been used to create disease trajectories for the Danish population, which you will learn more about later!
-
-You are now done with the first initial look at the registry-like data. This type of data have been used to create disease trajectories for the Danish population. You can wait till all are done with this part and we move on with the disease trajectory 'lecture' or you can slowly start to read about disease trajectories yourself (see below).
+You are now done with the first initial look at the registry-like data as well as some basic statistics and visualizations of the data. This type of data have been used to create disease trajectories for the Danish population. You can wait till all are done with this part and we move on with the disease trajectory 'lecture' or you can slowly start to read about disease trajectories yourself (see below).
 
 ## Disease pairs, linear age plot and Sankey network visualization
 
@@ -447,10 +445,15 @@ Here you can see a small video of some of the most basic features of the DTB:
 
 Now it is time to discover which nodes/disease are in females and males, only.
 
-18. Go to 'tools' in the menu-bar, 'merge' and 'networks'. Choose both the male and female networks and move them to the right 'networks to merge' box. Make sure to choose 'difference' and check the box 'Remove all nodes that are in the 2nd network'. And click 'merge'. You now get the difference between the first and the second network.
-19. Do the same thing again, but remember to change the order in which you drag the networks to the 'networks to merge' box. You now get the difference between the first and the second network.
-20. Which diseases are present in the female network and not the male network? Which diseases are present in the male network and not the female network?
-21. Go back to one of the main female or male networks. Play around with the network. Add labels, change styles and format and move the nodes around until you are satisfied with your disease trajectory network.
-22. Be proud! You have now visualized and analyze both registry-like data and different disease trajectories!
+18) Go to 'tools' in the menu-bar, 'merge' and 'networks'. Choose both the male and female networks and move them to the right 'networks to merge' box. Make sure to choose 'difference' and check the box 'Remove all nodes that are in the 2nd network'. And click 'merge'. You now get the difference between the first and the second network.
+
+19) Do the same thing again, but remember to change the order in which you drag the networks to the 'networks to merge' box. You now get the difference between the first and the second network.
+
+20) Which diseases are present in the female network and not the male network? Which diseases are present in the male network and not the female network?
+
+21) Go back to one of the main female or male networks. Play around with the network. Add labels, change styles and format and move the nodes around until you are satisfied with your disease trajectory network.
+
+22) Be proud! You have now visualized and analyze both registry-like data and different disease trajectories!
+
 
 ## Thank you for your time and participation!
