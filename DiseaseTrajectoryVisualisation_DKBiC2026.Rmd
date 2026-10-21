@@ -1,7 +1,7 @@
 ---
 title: "Disease Trajectory Visualisation workshop - DKBiC"
 author: "Isbaella Friis Jørgensen (isabella.jorgensen@cpr.ku.dk)"
-date: "07/09/2023"
+date: "27/10/2026"
 output: html_document
 ---
 
